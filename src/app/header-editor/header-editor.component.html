@@ -1,0 +1,45 @@
+
+
+<div class="header-container">
+  <div class="options">
+    <div class="button-bold">
+      <input (click)="setBold()" [checked]="boldChecked"  type="checkbox" id="button-bold">
+      <label for="button-bold">
+        <img id="button-bold-img" src="assets/img/bold-type-svgrepo-com.svg" />
+      </label>
+    </div>
+    <div class="button-italic">
+      <input (click)="setItalic()" [checked]="italicChecked"  type="checkbox" id="button-italic">
+      <label for="button-italic">
+        <img src="assets/img/italic.svg" alt="Italic">
+      </label>
+    </div>
+    <div class="button-underline">
+      <input (click)="setUnderline()" [checked]="underlineChecked"  type="checkbox" id="button-underline">
+      <label for="button-underline">
+        <img src="assets/img/edit.svg" alt="Underline">
+      </label>
+    </div>
+    <div class="button-image">
+      <input type="checkbox"   id="button-image">
+      <label for="button-image">
+        <img src="assets/img/picture-svgrepo-com.svg" alt="Image">
+      </label>
+    </div>
+    <div class="button-quote">
+      <input  (click)="setQuote()" type="checkbox" src="assets/img/media.svg" alt="Quote" id="button-quote">
+      <label for="button-quote">
+        <img src="assets/img/media.svg" alt="Quote">
+      </label>
+    </div>
+    <div class="button-list">
+      <input (click)="setList()" id="input-img" type="checkbox" src="assets/img/list.svg" alt="List" id=button-list>
+      <label for="button-list">
+        <img src="assets/img/list.svg" alt="List">
+      </label>
+    </div>
+  </div>
+  <div class="footer">
+  </div>
+</div>
+

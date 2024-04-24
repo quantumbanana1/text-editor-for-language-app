@@ -1,0 +1,9 @@
+
+<div class="text-editor-container">
+  <div #TextArea id="TextArea"  (mouseup)="handleSelection()"
+       contenteditable  (keydown)="onKeyChange($event)">
+    <p class="elementNull">
+      <span>&zwnj;</span>
+    </p>
+  </div>
+</div>
