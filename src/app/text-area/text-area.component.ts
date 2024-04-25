@@ -1,12 +1,6 @@
-import {
-  AfterViewInit,
-  Component,
-  ElementRef,
-  OnInit,
-  ViewChild,
-} from '@angular/core';
-import { TextEditorService } from '../text-editor.service';
-import { IBreakContainerReplaceState, IState } from '../textEditorTypes';
+import {AfterViewInit, Component, ElementRef, OnInit, ViewChild,} from '@angular/core';
+import {TextEditorService} from '../text-editor.service';
+import {IBreakContainerReplaceState, IState} from '../textEditorTypes';
 
 interface ITextState {
   null: boolean;
@@ -184,13 +178,14 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     textContent: string,
   ) {}
 
-  handleClick(event: Event) {}
+
 
   onKeyChange(event: KeyboardEvent) {
     const focusedNode = this.findFocusNode();
-    const container = focusedNode.parentNode as HTMLElement;
+    // const container = focusedNode.parentNode as HTMLElement;
+    const container = this.findSpanNode(focusedNode.parentNode as HTMLElement);
     let leafText: HTMLElement;
-    let baseNode;
+    let baseNode: HTMLElement | null
 
     if (event.key === 'Enter') {
       this.handleEnter();
@@ -227,15 +222,12 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
 
       if (container.className === 'elementNull') {
         this.swapElementWithinParagraph(container, nodeContainer);
-      }
-
-      if (container.className === 'element') {
+      } else if (container.className === 'nodeText 0') {
         this.insertNewNode(focusedNode, nodeContainer);
       }
-      console.log(baseNode);
+
       updateRange(baseNode);
-      console.log(leafText);
-      console.log(focusedNode);
+
     }
 
     this.previousState = JSON.parse(JSON.stringify(this.states));
@@ -263,8 +255,6 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
       'null',
       this.indexNull,
     );
-    const container = focusedNode.parentNode as HTMLElement;
-    const splittedClassName = focusedNode.className.split(' ');
     newElement.innerHTML = key;
     leafText = newElement;
     return leafText;
@@ -339,7 +329,6 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     let indexElements: number[] = [];
     let index: number;
     const range = document.createRange();
-    const selection = window.getSelection();
     const mainNode = this.TextAreaElement.nativeElement as HTMLElement;
     range.selectNode(mainNode);
     const childNodes = range.endContainer.childNodes[0].childNodes;
@@ -350,7 +339,6 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
       let nodeLength = childNodes.length;
       let count = 0;
 
-      console.log(childNodes);
 
       while (nodeLength > count) {
         endnode = childNodes[count];
@@ -408,7 +396,6 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     newParagraph.appendChild(breakContainer);
     breakContainer.classList.add('breakContainer');
     let focusedNode = this.findFocusNode();
-    const splittedClassName = focusedNode.className.split(' ');
     const container = focusedNode.parentNode as HTMLElement;
     console.log(focusedNode);
     console.log(container);
@@ -428,17 +415,7 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     updateRange(breakContainer);
   }
 
-  private handleNewElementBeforeBreak(
-    newElement: HTMLElement,
-    key: string,
-    breakContainer: HTMLElement,
-  ) {
-    //@ts-ignore
-    newElement.innerHTML = key;
-    breakContainer.insertAdjacentElement('afterend', newElement);
-    updateRange(newElement);
-    return;
-  }
+
 
   //Finds the focus node (element before cursor) in the editor
   private findFocusNode(): HTMLElement {
@@ -481,11 +458,42 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
   }
 
   private nodeText(): HTMLElement {
-    const nodeContainer = document.createElement('span', 'nodeText', 0);
-    return nodeContainer;
+    return this.createAndInsertElement('span', 'nodeText', 0);
   }
 
-  private insertNewNode(focusedNode: HTMLElement, nodeContainer: HTMLElement) {}
+  private insertNewNode(focusedNode: HTMLElement, nodeContainer: HTMLElement) {
+    const range = window.getSelection().getRangeAt(0);
+    const endOffSet = range.endOffset;
+    const startOffSet = range.startOffset;
+    const lengthText = focusedNode.textContent.length;
+
+    if (lengthText === endOffSet) {
+      const spanNode = this.findSpanNode(focusedNode.parentNode as HTMLElement)
+      console.log(spanNode);
+      spanNode.insertAdjacentElement('afterend', nodeContainer);
+      return;
+    }
+
+
+
+
+
+  }
+  // Recursively finds the first HTMLElement node with the class name 'nodeText 0'
+  //starting from the provided focusedNode that needs to be child of the parent we are looking for.
+  private findSpanNode(focusedNode: HTMLElement): HTMLElement {
+    const node = focusedNode as HTMLElement
+    if (node.className === 'nodeText 0' || node.className === 'element' || node.className === 'elementNull') {
+      return node
+    }
+    else {
+      return this.findSpanNode(node.parentNode as HTMLElement);
+    }
+
+  }
+
+
+
 
   ngOnInit() {
     this.textEditorService.notifyBoldTextChange.subscribe((value: IState) => {
@@ -499,11 +507,7 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
 
     this.textEditorService.notifyUnderlineTextChange.subscribe(
       (value: IState) => {
-        if (value.values.includes('underline')) {
-          this.states.underline = true;
-        } else {
-          this.states.underline = false;
-        }
+        this.states.underline = value.values.includes('underline');
       },
     );
 
@@ -514,11 +518,7 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     );
 
     this.textEditorService.notifyItalicTextChange.subscribe((value: IState) => {
-      if (value.values.includes('italic')) {
-        this.states.italic = true;
-      } else {
-        this.states.italic = false;
-      }
+      this.states.italic = value.values.includes('italic');
     });
   }
 

@@ -34,17 +34,15 @@ export class HeaderEditorComponent {
     // this.textEditorServe.setQuote();
   }
 
-  setButteledList() {
+  setBulletedList() {
     this.textEditorServe.setBulletedList();
   }
 
+
+
   ngOnInit() {
     this.textEditorServe.notifyBoldTextChange.subscribe((data) => {
-      if (data.values.includes('bold')) {
-        this.boldChecked = true;
-      } else {
-        this.boldChecked = false;
-      }
+      this.boldChecked = data.values.includes('bold');
     });
 
     // this.textEditorServe.notifyNullTextChange.subscribe((data) => {
@@ -54,21 +52,15 @@ export class HeaderEditorComponent {
     // });
 
     this.textEditorServe.notifyUnderlineTextChange.subscribe((data: IState) => {
-      if (data.values.includes('underline')) {
-        this.underlineChecked = true;
-      } else {
-        this.underlineChecked = false;
-      }
+      this.underlineChecked = data.values.includes('underline');
     });
 
     this.textEditorServe.notifyButteledListTextChange.subscribe(
       (data: IState) => {
-        if (data.values.includes('bulletedList')) {
-          this.listChecked = true;
-        } else {
-          this.listChecked = false;
-        }
+        this.listChecked = data.values.includes('bulletedList');
       },
     );
   }
+
+
 }
