@@ -12,33 +12,7 @@ interface ITextState {
 
 //it defines proper ID for new null element by checking previous  null elements' IDs
 
-function updateRange(element: HTMLElement) {
-  const selection = window.getSelection();
-  console.log(selection);
-  const range = document.createRange();
-  if (element.className === 'element' || element.className === 'elementNull') {
-    console.log('element;');
-    selection?.removeAllRanges();
-    range.setStart(element.firstChild, 0);
-    range.setEnd(element.firstChild, 1);
-    selection?.addRange(range);
-    return;
-  }
 
-  if (element.className === 'breakContainer') {
-    selection.removeAllRanges();
-    range.setStart(element, 0);
-    range.setEnd(element, 0);
-    selection.addRange(range);
-    range.collapse(true);
-    return;
-  }
-
-  selection?.removeAllRanges();
-  range.setStart(element, 0);
-  range.setEnd(element, 1);
-  selection.addRange(range);
-}
 
 @Component({
   selector: 'app-text-area',
@@ -64,8 +38,6 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
   //@ts-ignore
   private indexBold: number = 0;
   private indexNull: number = 0;
-  private indexBreak: number = 0;
-  private replaceBreakWithNewText: boolean = false;
   private previousState: ITextState;
   constructor(private textEditorService: TextEditorService) {}
 
@@ -186,9 +158,10 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     const container = this.findSpanNode(focusedNode.parentNode as HTMLElement);
     let leafText: HTMLElement;
     let baseNode: HTMLElement | null
+    const range = this.createRange();
 
     if (event.key === 'Enter') {
-      this.handleEnter();
+      this.handleEnter(focusedNode, range);
       event.preventDefault();
       return;
     }
@@ -198,7 +171,7 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     if (!isStateSame) {
       const nodeContainer = this.nodeText();
       if (this.states.null) {
-        leafText = this.handleNull(event.key, leafText, focusedNode);
+        leafText = this.handleNull(event.key);
         baseNode = leafText;
       }
 
@@ -226,7 +199,7 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
         this.insertNewNode(focusedNode, nodeContainer);
       }
 
-      updateRange(baseNode);
+      this.updateRange(baseNode);
 
     }
 
@@ -249,15 +222,14 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     }
   }
 
-  handleNull(key: string, leafText, focusedNode: HTMLElement) {
+  handleNull(key: string) {
     const newElement = this.createAndInsertElement(
       'span',
       'null',
       this.indexNull,
     );
     newElement.innerHTML = key;
-    leafText = newElement;
-    return leafText;
+    return newElement;
   }
 
   hanldeUnderlineText(leafText: HTMLElement) {
@@ -301,6 +273,40 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
       leafText = BulletedListElement;
       return leafText;
     }
+  }
+
+  private handleEnter(focusedNode: HTMLElement, range: Range) {
+    const newParagraph = this.createContainerElement('elementNull');
+    const breakElement = document.createElement('br');
+    const nodeContainer = this.nodeText();
+    const container = this.findParagraphNode(focusedNode);
+    const length = focusedNode.textContent?.length;
+    const endOffSet = range.endOffset;
+    let nullElement: HTMLElement;
+    if (!container) {
+      console.log("paragraph node not found")
+      return;
+    }
+
+
+    if (length === endOffSet) {
+
+      nullElement = this.handleNull('&zwnj;');
+      nullElement.appendChild(breakElement);
+      newParagraph.appendChild(nullElement);
+      container.insertAdjacentElement('afterend', newParagraph);
+
+
+
+
+    }
+
+    if (length > endOffSet) {
+      range.selectNode(container);
+      range.insertNode(newParagraph);
+    }
+
+    this.updateRange(nullElement);
   }
 
   private swapElementWithinParagraph(
@@ -387,33 +393,7 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     return true;
   }
 
-  private handleEnter() {
-    const range = window.getSelection()?.getRangeAt(0);
-    const newParagraph = this.createContainerElement();
-    const breakContainer = document.createElement('div');
-    const breakElement = document.createElement('br');
-    breakContainer.appendChild(breakElement);
-    newParagraph.appendChild(breakContainer);
-    breakContainer.classList.add('breakContainer');
-    let focusedNode = this.findFocusNode();
-    const container = focusedNode.parentNode as HTMLElement;
-    console.log(focusedNode);
-    console.log(container);
-    const length = focusedNode.textContent?.length;
-    const endOffSet = range.endOffset;
 
-    if (length === endOffSet) {
-      container.insertAdjacentElement('afterend', newParagraph);
-    }
-
-    if (length > endOffSet) {
-      range.selectNode(container);
-      range.insertNode(newParagraph);
-    }
-
-    this.indexBreak++;
-    updateRange(breakContainer);
-  }
 
 
 
@@ -451,9 +431,9 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     }
   }
 
-  private createContainerElement(): HTMLElement {
+  private createContainerElement(className:string): HTMLElement {
     const containerElement = document.createElement('p');
-    containerElement.classList.add('element');
+    containerElement.classList.add(className);
     return containerElement;
   }
 
@@ -490,6 +470,42 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
       return this.findSpanNode(node.parentNode as HTMLElement);
     }
 
+  }
+
+  private findParagraphNode(focusedNode: HTMLElement): HTMLElement | null {
+
+    if (!focusedNode) {
+      return null;
+    }
+
+    if (focusedNode.className === 'element' || focusedNode.className === 'elementNull') {
+      return focusedNode;
+    } else {
+      return this.findParagraphNode(focusedNode.parentNode as HTMLElement);
+    }
+  }
+
+
+  private createRange(): Range {
+    return window.getSelection().getRangeAt(0);
+  }
+
+  private updateRange(element: HTMLElement): void {
+    const selection = window.getSelection();
+    console.log(selection);
+    const range = document.createRange();
+    const container = this.findParagraphNode(element);
+    selection.removeAllRanges();
+
+    if (container.className === 'elementNull') {
+
+      range.setStart(element.firstChild, 0);
+      range.setEnd(element.firstChild, 0);
+    }
+
+    range.setStart(element, 0);
+    range.setEnd(element, 1);
+    selection.addRange(range);
   }
 
 
