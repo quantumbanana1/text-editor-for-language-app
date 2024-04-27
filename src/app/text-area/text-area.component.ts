@@ -1,6 +1,13 @@
-import {AfterViewInit, Component, ElementRef, OnInit, ViewChild,} from '@angular/core';
-import {TextEditorService} from '../text-editor.service';
-import {IBreakContainerReplaceState, IState} from '../textEditorTypes';
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  OnInit,
+  ViewChild,
+} from "@angular/core";
+import { TextEditorService } from "../text-editor.service";
+import { IBreakContainerReplaceState, IState } from "../textEditorTypes";
+import { IfStmt } from "@angular/compiler";
 
 interface ITextState {
   null: boolean;
@@ -12,18 +19,16 @@ interface ITextState {
 
 //it defines proper ID for new null element by checking previous  null elements' IDs
 
-
-
 @Component({
-  selector: 'app-text-area',
+  selector: "app-text-area",
   standalone: true,
   imports: [],
-  templateUrl: './text-area.component.html',
-  styleUrl: './text-area.component.css',
+  templateUrl: "./text-area.component.html",
+  styleUrl: "./text-area.component.css",
 })
 export class TextAreaComponent implements AfterViewInit, OnInit {
   // @ViewChild('fake_textarea') public textEditor: ElementRef | undefined;
-  @ViewChild('TextArea') public TextAreaElement: ElementRef;
+  @ViewChild("TextArea") public TextAreaElement: ElementRef;
   private TextArea: ElementRef;
   private states: ITextState = {
     null: true,
@@ -33,8 +38,10 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     bulletedList: false,
   };
 
-  text: string = '';
-  value: string = '';
+  private replaceBreakContainerWithNewElement: boolean = false;
+
+  text: string = "";
+  value: string = "";
   //@ts-ignore
   private indexBold: number = 0;
   private indexNull: number = 0;
@@ -54,22 +61,22 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     const mainContainer = range.commonAncestorContainer as HTMLElement;
 
     console.log(
-      'selection: ',
+      "selection: ",
       selection,
-      'range: ',
+      "range: ",
       range,
-      'length: ',
+      "length: ",
       length,
-      'endOffset: ',
+      "endOffset: ",
       endOffSet,
-      'foucusedNode: ',
+      "foucusedNode: ",
       focusedNode,
-      'selectedText: ',
+      "selectedText: ",
       selectedText,
     );
 
-    if (mainContainer.id === 'TextArea') {
-      let textContainer = '';
+    if (mainContainer.id === "TextArea") {
+      let textContainer = "";
       const newHTMLStructure = this.travelThroughNodes(
         startNode,
         range,
@@ -150,17 +157,20 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     textContent: string,
   ) {}
 
-
-
   onKeyChange(event: KeyboardEvent) {
     const focusedNode = this.findFocusNode();
     // const container = focusedNode.parentNode as HTMLElement;
-    const container = this.findSpanNode(focusedNode.parentNode as HTMLElement);
+    let container = this.findParagraphNode(
+      focusedNode.parentNode as HTMLElement,
+    );
     let leafText: HTMLElement;
-    let baseNode: HTMLElement | null
+    let baseNode: HTMLElement | null;
     const range = this.createRange();
+    if (container.className === "elementNull") {
+      this.replaceBreakContainerWithNewElement = true;
+    }
 
-    if (event.key === 'Enter') {
+    if (event.key === "Enter") {
       this.handleEnter(focusedNode, range);
       event.preventDefault();
       return;
@@ -168,7 +178,7 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
 
     const isStateSame = this.isPrevStateSame(this.previousState, this.states);
 
-    if (!isStateSame) {
+    if (!isStateSame || this.replaceBreakContainerWithNewElement) {
       const nodeContainer = this.nodeText();
       if (this.states.null) {
         leafText = this.handleNull(event.key);
@@ -193,25 +203,21 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
 
       nodeContainer.appendChild(leafText);
 
-      if (container.className === 'elementNull') {
+      if (container.className === "elementNull") {
         this.swapElementWithinParagraph(container, nodeContainer);
-      } else if (container.className === 'nodeText 0') {
+      } else if (container.className === "element") {
         this.insertNewNode(focusedNode, nodeContainer);
       }
 
       this.updateRange(baseNode);
-
     }
 
     this.previousState = JSON.parse(JSON.stringify(this.states));
+    this.replaceBreakContainerWithNewElement = false;
   }
 
   handleBold(leafText) {
-    const boldElement = this.createAndInsertElement(
-      'strong',
-      'bold',
-      this.indexBold,
-    );
+    const boldElement = this.createAndInsertElement("strong", "bold");
     if (!leafText) {
       leafText = boldElement;
       return leafText;
@@ -223,21 +229,13 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
   }
 
   handleNull(key: string) {
-    const newElement = this.createAndInsertElement(
-      'span',
-      'null',
-      this.indexNull,
-    );
+    const newElement = this.createAndInsertElement("span", "null");
     newElement.innerHTML = key;
     return newElement;
   }
 
   hanldeUnderlineText(leafText: HTMLElement) {
-    const newElementUnderline = this.createAndInsertElement(
-      'u',
-      'underline',
-      0,
-    );
+    const newElementUnderline = this.createAndInsertElement("u", "underline");
     if (!leafText) {
       leafText = newElementUnderline;
       return leafText;
@@ -248,7 +246,7 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
   }
 
   handleItalic(leafText: HTMLElement) {
-    const italicElement = this.createAndInsertElement('em', 'italic', 0);
+    const italicElement = this.createAndInsertElement("em", "italic");
     if (!leafText) {
       leafText = italicElement;
       return leafText;
@@ -261,49 +259,50 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
 
   private handleBulletedList(leafText: HTMLElement) {
     const BulletedListElement = this.createAndInsertElement(
-      'li',
-      'bulletedList',
-      0,
+      "li",
+      "bulletedList",
     );
+    const ulElement = this.createAndInsertElement("ul", "ul");
     if (!leafText) {
       leafText = BulletedListElement;
       return leafText;
     } else {
       BulletedListElement.appendChild(leafText);
-      leafText = BulletedListElement;
+      ulElement.appendChild(BulletedListElement);
+      leafText = ulElement;
       return leafText;
     }
   }
 
   private handleEnter(focusedNode: HTMLElement, range: Range) {
-    const newParagraph = this.createContainerElement('elementNull');
-    const breakElement = document.createElement('br');
+    const newParagraph = this.createContainerElement("elementNull");
+    const breakElement = document.createElement("br");
     const nodeContainer = this.nodeText();
     const container = this.findParagraphNode(focusedNode);
     const length = focusedNode.textContent?.length;
     const endOffSet = range.endOffset;
     let nullElement: HTMLElement;
     if (!container) {
-      console.log("paragraph node not found")
+      console.log("paragraph node not found");
       return;
     }
 
-
     if (length === endOffSet) {
-
-      nullElement = this.handleNull('&zwnj;');
+      nullElement = this.handleNull("&zwnj;");
       nullElement.appendChild(breakElement);
       newParagraph.appendChild(nullElement);
-      container.insertAdjacentElement('afterend', newParagraph);
-
-
-
-
+      container.insertAdjacentElement("afterend", newParagraph);
     }
 
-    if (length > endOffSet) {
-      range.selectNode(container);
-      range.insertNode(newParagraph);
+    if (length > endOffSet && endOffSet != 0) {
+      newParagraph.classList.remove("elementNull");
+      newParagraph.classList.add("element");
+      nullElement = this.splitText(
+        focusedNode,
+        newParagraph,
+        container,
+        endOffSet,
+      );
     }
 
     this.updateRange(nullElement);
@@ -316,68 +315,14 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     console.log(container.firstElementChild);
     const childToReplace = container.firstElementChild;
     container.replaceChild(newElement, childToReplace);
-    container.classList.remove('elementNull');
-    container.classList.add('element');
+    container.classList.remove("elementNull");
+    container.classList.add("element");
   }
 
-  createAndInsertElement(
-    tagName: string,
-    className: string,
-    index: number,
-  ): HTMLElement {
+  createAndInsertElement(tagName: string, className: string): HTMLElement {
     const element = document.createElement(tagName);
     element.classList.add(className);
-    element.classList.add(`${index}`);
     return element;
-  }
-
-  setNewId(className: string, initialIndex: number): number {
-    let indexElements: number[] = [];
-    let index: number;
-    const range = document.createRange();
-    const mainNode = this.TextAreaElement.nativeElement as HTMLElement;
-    range.selectNode(mainNode);
-    const childNodes = range.endContainer.childNodes[0].childNodes;
-    if (childNodes.length === 0) {
-      return this.indexNull;
-    } else {
-      let endnode;
-      let nodeLength = childNodes.length;
-      let count = 0;
-
-
-      while (nodeLength > count) {
-        endnode = childNodes[count];
-        console.log(endnode);
-        const className = endnode.className;
-        if (className === 'element' || className === 'elementNull') {
-          const parahraphChildLenght = endnode.childNodes.length;
-          let childCount = 0;
-          const children = endnode.childNodes;
-
-          for (let i = 0; i < parahraphChildLenght; i++) {
-            console.log(children[i]);
-            const child = children[i] as HTMLElement;
-            const classNameSplitted = child.className.split(' ');
-            if (classNameSplitted[0] === className) {
-              index = parseInt(classNameSplitted[1]);
-              indexElements.push(index);
-            }
-            childCount++;
-          }
-        }
-
-        count++;
-      }
-    }
-
-    if (indexElements.length > 0) {
-      console.log(indexElements);
-      return Math.max(...indexElements) + 1;
-    }
-    console.log(indexElements);
-
-    return initialIndex;
   }
 
   private isPrevStateSame(prevState, currentState): boolean {
@@ -393,10 +338,6 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     return true;
   }
 
-
-
-
-
   //Finds the focus node (element before cursor) in the editor
   private findFocusNode(): HTMLElement {
     const sel = window.getSelection();
@@ -404,17 +345,17 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     let element = range.endContainer.parentNode as HTMLElement;
 
     if (
-      element.className === 'element' ||
-      element.className === 'elementNull'
+      element.className === "element" ||
+      element.className === "elementNull"
     ) {
       element = range.endContainer as HTMLElement;
     }
 
-    if (element.className !== 'TextArea') {
+    if (element.className !== "TextArea") {
       return element as HTMLElement;
     }
 
-    console.log('isChildNodes none');
+    console.log("isChildNodes none");
     return this.TextAreaElement.nativeElement as HTMLElement;
   }
 
@@ -423,22 +364,22 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     newElement: HTMLElement,
   ) {
     if (
-      paragraphContainer.className === 'element' ||
-      paragraphContainer.className === 'elementNull'
+      paragraphContainer.className === "element" ||
+      paragraphContainer.className === "elementNull"
     ) {
       const childToReplace = paragraphContainer.firstElementChild;
       paragraphContainer.replaceChild(newElement, childToReplace);
     }
   }
 
-  private createContainerElement(className:string): HTMLElement {
-    const containerElement = document.createElement('p');
+  private createContainerElement(className: string): HTMLElement {
+    const containerElement = document.createElement("p");
     containerElement.classList.add(className);
     return containerElement;
   }
 
   private nodeText(): HTMLElement {
-    return this.createAndInsertElement('span', 'nodeText', 0);
+    return this.createAndInsertElement("span", "nodeText");
   }
 
   private insertNewNode(focusedNode: HTMLElement, nodeContainer: HTMLElement) {
@@ -448,43 +389,37 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     const lengthText = focusedNode.textContent.length;
 
     if (lengthText === endOffSet) {
-      const spanNode = this.findSpanNode(focusedNode.parentNode as HTMLElement)
+      const spanNode = this.findSpanNode(focusedNode.parentNode as HTMLElement);
       console.log(spanNode);
-      spanNode.insertAdjacentElement('afterend', nodeContainer);
+      spanNode.insertAdjacentElement("afterend", nodeContainer);
       return;
     }
-
-
-
-
-
   }
   // Recursively finds the first HTMLElement node with the class name 'nodeText 0'
   //starting from the provided focusedNode that needs to be child of the parent we are looking for.
   private findSpanNode(focusedNode: HTMLElement): HTMLElement {
-    const node = focusedNode as HTMLElement
-    if (node.className === 'nodeText 0' || node.className === 'element' || node.className === 'elementNull') {
-      return node
-    }
-    else {
+    const node = focusedNode as HTMLElement;
+    if (node.className === "nodeText") {
+      return node;
+    } else {
       return this.findSpanNode(node.parentNode as HTMLElement);
     }
-
   }
 
   private findParagraphNode(focusedNode: HTMLElement): HTMLElement | null {
-
     if (!focusedNode) {
       return null;
     }
 
-    if (focusedNode.className === 'element' || focusedNode.className === 'elementNull') {
+    if (
+      focusedNode.className === "element" ||
+      focusedNode.className === "elementNull"
+    ) {
       return focusedNode;
     } else {
       return this.findParagraphNode(focusedNode.parentNode as HTMLElement);
     }
   }
-
 
   private createRange(): Range {
     return window.getSelection().getRangeAt(0);
@@ -497,23 +432,95 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
     const container = this.findParagraphNode(element);
     selection.removeAllRanges();
 
-    if (container.className === 'elementNull') {
-
-      range.setStart(element.firstChild, 0);
-      range.setEnd(element.firstChild, 0);
+    if (container.className === "elementNull") {
+      range.setStart(element, 0);
+      range.setEnd(element, 0);
+    } else if (element.classList.contains("splitted")) {
+      range.setStart(element, 0);
+      range.setStart(element, 0);
+      element.classList.remove("splitted");
+    } else {
+      range.setStart(element, 0);
+      range.setEnd(element, 1);
     }
-
-    range.setStart(element, 0);
-    range.setEnd(element, 1);
     selection.addRange(range);
   }
 
+  private splitText(
+    node: HTMLElement,
+    newParagraph: HTMLElement,
+    currentParahraph: HTMLElement,
+    endOffSet: number,
+  ) {
+    const spanNode = this.findSpanNode(node);
+    const copiedTreeNode = spanNode.cloneNode(true) as HTMLElement;
+    const splittedText = node.textContent.slice(
+      endOffSet,
+      node.textContent.length,
+    );
+    node.innerText = node.textContent.slice(0, endOffSet);
+    const newBaseNode = this.findNode("null", copiedTreeNode);
+    newBaseNode.innerText = splittedText;
+    const childToNewParagraph: HTMLElement[] = [copiedTreeNode];
+    const newSpanNode = childToNewParagraph[0];
+    this.copySiblings(childToNewParagraph, spanNode.nextSibling as HTMLElement);
+    this.removeChildren(childToNewParagraph.slice(1), currentParahraph);
+    this.addNewChildren(newParagraph, childToNewParagraph);
+    currentParahraph.insertAdjacentElement("afterend", newParagraph);
+    newBaseNode.classList.add("splitted");
+    return newBaseNode;
+  }
 
+  private copySiblings(
+    children: HTMLElement[],
+    spanNode: HTMLElement,
+  ): HTMLElement[] {
+    if (!spanNode) {
+      return children;
+    }
 
+    children.push(spanNode);
+    return this.copySiblings(children, spanNode.nextSibling as HTMLElement);
+  }
+
+  private removeChildren(children: HTMLElement[], parent: HTMLElement): void {
+    const childNodes = parent.childNodes;
+    const length = parent.childNodes.length;
+    let count = 0;
+
+    for (let i = 0; i < length; i++) {
+      if (childNodes[i] === children[count]) {
+        parent.removeChild(children[count]);
+        count += 1;
+      }
+    }
+  }
+
+  private addNewChildren(parent: HTMLElement, children: HTMLElement[]): void {
+    const length = children.length;
+    for (let i = 0; i < length; i++) {
+      parent.appendChild(children[i]);
+    }
+  }
+
+  private findNode(
+    className: string,
+    spanNode: HTMLElement,
+  ): HTMLElement | null {
+    if (!spanNode) {
+      return null;
+    }
+
+    if (spanNode.className === "null") {
+      return spanNode;
+    }
+
+    return this.findNode(className, spanNode.firstElementChild as HTMLElement);
+  }
 
   ngOnInit() {
     this.textEditorService.notifyBoldTextChange.subscribe((value: IState) => {
-      if (value.values.includes('bold')) {
+      if (value.values.includes("bold")) {
         this.states.bold = true;
         this.indexNull += 1;
       } else {
@@ -523,19 +530,19 @@ export class TextAreaComponent implements AfterViewInit, OnInit {
 
     this.textEditorService.notifyUnderlineTextChange.subscribe(
       (value: IState) => {
-        this.states.underline = value.values.includes('underline');
-      },
-    );
-
-    this.textEditorService.notifyBreakContainer.subscribe(
-      (value: IBreakContainerReplaceState) => {
-        this.replaceBreakWithNewText = value.replace;
+        this.states.underline = value.values.includes("underline");
       },
     );
 
     this.textEditorService.notifyItalicTextChange.subscribe((value: IState) => {
-      this.states.italic = value.values.includes('italic');
+      this.states.italic = value.values.includes("italic");
     });
+
+    this.textEditorService.notifyButteledListTextChange.subscribe(
+      (value: IState) => {
+        this.states.bulletedList = value.values.includes("bulletedList");
+      },
+    );
   }
 
   ngAfterViewInit() {
